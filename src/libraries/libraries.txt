@@ -1,0 +1,17 @@
+npm install react-native-screens react-native-safe-area-context
+npm install @react-navigation/native-stack
+npm install @react-navigation/stack
+npm install react-native-gesture-handler
+npm install @react-native-masked-view/masked-view
+npm install @react-navigation/material-bottom-tabs react-native-paper react-native-vector-icons
+npm install --save react-native-vector-icons
+npm install @react-native-async-storage/async-storage
+npm install react-native-paper
+npm install react-native-radio-buttons --save
+npm install react-native-picker-select --save
+npm install @react-native-community/datetimepicker
+
+npm install react-native-elements
+npm install react-native-sqlite-storage
+npm install react-native-contacts  //=><uses-permission android:name="android.permission.READ_CONTACTS" />
+

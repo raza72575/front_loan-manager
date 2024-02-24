@@ -1,0 +1,343 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_SERVER_IP } from '../../../ip_address/ipconfig';
+
+const NotificationScreen = ({ navigation }) => {
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [singleNotifications, setSingleNotifications] = useState([]);
+  const [multipleNotifications, setMultipleNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    fetchDataFromApi();
+  }, []);
+
+  const fetchDataFromApi = async () => {
+    try {
+      setLoading(true);
+      const userId = await AsyncStorage.getItem('userId');
+
+      // Fetch friend requests
+      const friendRequestsResponse = await fetch(
+        `http://${API_SERVER_IP}/FundsFriendlyApi/api/MakeFriend/GetFriendRequests?userId=${userId}`
+      );
+      if (!friendRequestsResponse.ok) {
+        throw new Error(
+          `Friend Requests API failed with status: ${friendRequestsResponse.status}`
+        );
+      }
+      const friendRequestsResult = await friendRequestsResponse.json();
+      setFriendRequests(friendRequestsResult);
+
+      // Fetch single notifications
+      const singleNotifyResponse = await fetch(
+        `http://${API_SERVER_IP}/BackUpApi/api/PaymentNotifications/GetSingleNotify?notifyId=${userId}`
+      );
+      if (!singleNotifyResponse.ok) {
+        throw new Error(
+          `Single Notify API failed with status: ${singleNotifyResponse.status}`
+        );
+      }
+      const singleNotifyResult = await singleNotifyResponse.json();
+      setSingleNotifications(singleNotifyResult);
+
+      // Fetch multiple notifications
+      const multipleNotifyResponse = await fetch(
+        `http://${API_SERVER_IP}/BackUpApi/api/PaymentNotifications/GetMultipleNotify?notifyId=${userId}`
+      );
+      if (!multipleNotifyResponse.ok) {
+        throw new Error(
+          `Multiple Notify API failed with status: ${multipleNotifyResponse.status}`
+        );
+      }
+      const multipleNotifyResult = await multipleNotifyResponse.json();
+      setMultipleNotifications(multipleNotifyResult);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      Alert.alert('Error', `Failed to fetch data. ${error.message}`);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleAccept = async (friendRequestId) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      const response = await fetch(
+        `http://${API_SERVER_IP}/FundsFriendlyApi/api/MakeFriend/AcceptFriendRequest?friendRequestId=${userId}`,
+        {
+          method: 'GET',
+        }
+      );
+
+      if (response.ok) {
+        console.log('Friend request accepted successfully.');
+        // Refresh data after accepting friend request
+        fetchDataFromApi();
+      } else {
+        throw new Error('Failed to accept friend request.');
+      }
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      Alert.alert('Error', 'Failed to accept friend request. Please try again.');
+    }
+  };
+
+  const handleReject = async (friendRequestId) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      const response = await fetch(
+        `http://${API_SERVER_IP}/FundsFriendlyApi/api/MakeFriend/RejectFriendRequest?friendRequestId=${userId}`,
+        {
+          method: 'GET',
+        }
+      );
+
+      if (response.ok) {
+        console.log('Friend request rejected successfully.');
+        // Refresh data after rejecting friend request
+        fetchDataFromApi();
+      } else {
+        throw new Error('Failed to reject friend request.');
+      }
+    } catch (error) {
+      console.error('Error rejecting friend request:', error);
+      Alert.alert('Error', 'Failed to reject friend request. Please try again.');
+    }
+  };
+
+  const handleOkAndPayMultiple = (item) => {
+    console.log('Ok button clicked for multiple item:', item);
+    // This is a multiple notification
+    // Perform actions specific to multiple notifications
+    console.log('Multiple Notification Data:', item);
+    // Add your logic for calling an API or any other action for multiple notifications here
+  };
+
+  const handleOkAndPaySingle = (item) => {
+    console.log('Ok button clicked for single item:', item);
+    // This is a single notification
+    // Perform actions specific to single notifications
+    console.log('Single Notification Data:', item);
+    // Add your logic for calling an API or any other action for single notifications here
+  };
+
+  const handleFetchFriendRequests = useCallback(() => {
+    setRefreshing(true);
+    fetchDataFromApi();
+  }, []);
+
+  const renderFriendRequestItem = ({ item }) => {
+    return (
+      <View style={styles.itemContainer}>
+        <Text style={styles.notificationText}>
+          {`Friend Request from ${item.SenderUserName}`}
+        </Text>
+
+        <View style={styles.friendRequestButtonsContainer}>
+          <TouchableOpacity
+            style={styles.acceptButton}
+            onPress={() => handleAccept(item.SenderUserId)}
+          >
+            <Text style={styles.acceptButtonText}>Accept</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.rejectButton}
+            onPress={() => handleReject(item.SenderUserId)}
+          >
+            <Text style={styles.rejectButtonText}>Reject</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderSingleNotificationItem = ({ item }) => {
+    return (
+      <View style={styles.itemContainer}>
+        <Text style={styles.notificationText}>
+          {`Please send Amount: ${item.Amount}, to ${item.NotifierName} in ${item.ExpenseName}`}
+        </Text>
+
+        <View style={styles.okAndPayButtonsContainer}>
+          <TouchableOpacity
+            style={styles.okButton} // Different style for single notification
+            onPress={() => handleOkAndPaySingle(item)}
+          >
+            <Text style={styles.okButtonText}>Ok</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderMultipleNotificationItem = ({ item }) => {
+    return (
+      <View style={styles.itemContainer}>
+        <Text style={styles.notificationText}>
+          {`Notification from ${item.NotifierName}, Total Amount: ${item.Amount}, ExpenseName: ${item.ExpenseName}`}
+        </Text>
+
+        <View style={styles.okAndPayButtonsContainer}>
+          <TouchableOpacity
+            style={styles.okButton} // Same style for multiple notification
+            onPress={() => handleOkAndPayMultiple(item)}
+          >
+            <Text style={styles.okButtonText}>Ok</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Notifications</Text>
+      </View>
+
+      {friendRequests.length > 0 && (
+        <FlatList
+          data={friendRequests}
+          keyExtractor={(item, index) => `friend_${index.toString()}`}
+          renderItem={renderFriendRequestItem}
+          ListHeaderComponent={() => (
+            <Text style={styles.sectionHeader}>Friend Requests</Text>
+          )}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleFetchFriendRequests} />
+          }
+        />
+      )}
+
+      {singleNotifications.length > 0 && (
+        <FlatList
+          data={singleNotifications}
+          keyExtractor={(item, index) => `single_${index.toString()}`}
+          renderItem={renderSingleNotificationItem}
+          ListHeaderComponent={() => (
+            <Text style={styles.sectionHeader}>Single Notifications</Text>
+          )}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleFetchFriendRequests} />
+          }
+        />
+      )}
+
+      {multipleNotifications.length > 0 && (
+        <FlatList
+          data={multipleNotifications}
+          keyExtractor={(item, index) => `multiple_${index.toString()}`}
+          renderItem={renderMultipleNotificationItem}
+          ListHeaderComponent={() => (
+            <Text style={styles.sectionHeader}>Multiple Notifications</Text>
+          )}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleFetchFriendRequests} />
+          }
+        />
+      )}
+
+      {loading && (
+        <ActivityIndicator style={styles.loadingIndicator} size="large" color="#0000ff" />
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#EFEFF4',
+  },
+  header: {
+    backgroundColor: '#3498DB',
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 10,
+    marginLeft: 15,
+  },
+  itemContainer: {
+    flexDirection: 'column',
+    padding: 15,
+    borderBottomWidth: 2,
+    borderBottomColor: '#D1D1D6',
+    backgroundColor: '#FFFFFF',
+  },
+  notificationText: {
+    fontSize: 16,
+    color: '#333333',
+  },
+  friendRequestButtonsContainer: {
+    flexDirection: 'row',
+    marginTop: 10,
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  acceptButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  rejectButton: {
+    backgroundColor: '#FF4F4F',
+    padding: 10,
+    borderRadius: 8,
+  },
+  rejectButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  okAndPayButtonsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  okButton: {
+    backgroundColor: '#3498DB',
+    padding: 10,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  okButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  loadingIndicator: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
+
+export default NotificationScreen;

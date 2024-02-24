@@ -1,0 +1,232 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  TextInput,
+  Image
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_SERVER_IP } from '../../../ip_address/ipconfig';
+
+const MyPayable = ({ navigation }) => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [multipleData, setMultipleData] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchDataFromApi = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      const response = await fetch(`http://${API_SERVER_IP}/FundsFriendlyApi/api/Payment/MyPayables/${userId}`);
+      const result = await response.json();
+
+      if (!result || result.length === 0) {
+        setError('No payments found');
+      } else {
+        setData(result);
+      }
+    } catch (error) {
+      console.error('Error fetching data from the first API:', error);
+      setError('Error fetching data from the first API. Please try again.');
+    }
+
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      const response = await fetch(`http://${API_SERVER_IP}/BackUpApi/api/MultiplePayableRecieveable/MyPayables/${userId}`);
+      const result = await response.json();
+
+      if (!result || result.length === 0) {
+        setError('No payments found');
+      } else {
+        setMultipleData(result);
+      }
+    } catch (error) {
+      console.error('Error fetching data from the second API:', error);
+      setError('Error fetching data from the second API. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDataFromApi();
+  }, []); // Empty dependency array means this effect will run only once when the component mounts
+
+  const handlePayAmount = (item) => {
+    navigation.navigate('SendRemainingAmount', { item });
+  };
+
+  const handleMultiplePayAmount = (item) => {
+    navigation.navigate('SendRemainingAmount', { item });
+  };
+
+  const filteredData = data.filter(
+    (item) =>
+      item.ExpenseDetails?.ExpenseName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      item.HeTotalPaid.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredMultipleData = multipleData.filter(
+    (item) =>
+      item.ExpenseDetails?.ExpenseName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.MyName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (filteredData.length === 0 && filteredMultipleData.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>My Payable</Text>
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search by expense or name"
+          onChangeText={(text) => setSearchQuery(text)}
+          value={searchQuery}
+        />
+        <Text>No payments found</Text>
+      </View>
+    );
+  }
+
+  const renderItem = ({ item }) => (
+    <View style={styles.cardContainer}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{`Expense Name: ${item.ExpenseDetails?.ExpenseName || 'N/A'}`}</Text>
+        <Text style={styles.cardText}>{`You have to pay ${item.AmountRemaining || 0} to ${item.HeTotalPaid || 'N/A'}`}</Text>
+        <Text>{item.MyId}</Text>
+        <Text>expense Id:{item.Expense}</Text>
+      </View>
+
+      <TouchableOpacity style={styles.payButton} onPress={() => handlePayAmount(item)}>
+        <Text style={styles.payButtonText}>Pay Amount</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderMultipleItem = ({ item }) => (
+    <View style={styles.cardContainer}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{`Expense Name: ${item.ExpenseDetails?.ExpenseName || 'N/A'}`}</Text>
+        <Text style={styles.cardText}>{`You have to pay ${item.AmountRemaining || 0} to ${item.MyName || 'N/A'}`}</Text>
+        <Text>{item.mId}</Text>
+        <Text>expense Id:{item.Expense}</Text>
+      </View>
+
+      <TouchableOpacity style={styles.payButton} onPress={() => handleMultiplePayAmount(item)}>
+        <Text style={styles.payButtonText}>Pay Amount</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>My Payable</Text>
+      <View  style={styles.searchBar}>
+      
+        <Image source={require('../../../assets/images/s.png')} style={styles.Icon}/>
+      
+      <TextInput
+       
+        placeholder="Search by expense or name"
+        onChangeText={(text) => setSearchQuery(text)}
+        value={searchQuery}
+      />
+      </View>
+      {loading ? (
+        <ActivityIndicator size="large" color="#8b0000" />
+      ) : error ? (
+        <Text style={styles.errorText}>{error}</Text>
+      ) : (
+        <FlatList
+          data={[...filteredData, ...filteredMultipleData]}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={(item) => {
+            if (item.index < filteredData.length) {
+              return renderItem(item);
+            } else {
+              return renderMultipleItem(item);
+            }
+          }}
+          refreshing={loading}
+          onRefresh={fetchDataFromApi}
+        />
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 10,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  cardContainer: {
+    marginBottom: 16,
+    backgroundColor: 'white',
+    elevation: 10,
+  },
+  card: {
+    backgroundColor: 'white',
+    elevation: 10,
+    borderRadius: 8,
+    padding: 16,
+    borderColor: '#ddd',
+    borderWidth: 1,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  cardText: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  payButton: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  payButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  noPaymentsText: {
+    fontSize: 18,
+    color: 'blue',
+    marginTop: 8,
+  },
+  errorText: {
+    fontSize: 18,
+    color: 'red',
+    marginTop: 8,
+  },
+  searchBar:{
+    borderWidth:1,
+    margin:5,
+    borderRadius:20,
+    flexDirection:'row',
+    alignItems:'center',
+    backgroundColor:'white',
+    elevation:10,
+    // borderColor:'black'
+  },
+  Icon:{
+    width:40,
+    height:40
+  }
+});
+
+export default MyPayable;

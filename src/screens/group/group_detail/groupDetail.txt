@@ -1,0 +1,214 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, RefreshControl } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const GroupDetail = ({ route, navigation }) => {
+  const {
+    groupId,
+    groupName,
+    groupDate,
+    groupDescription,
+    groupMembers,
+  } = route.params;
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
+
+  const toggleMembers = () => {
+    setShowMembers(!showMembers);
+    if (!showMembers) {
+      console.log('Group Members:', groupMembers); // Log group members when showMembers is clicked
+    }
+  };
+
+  // Simulate data fetching when the screen initially renders
+  useEffect(() => {
+    const fetchData = async () => {
+      setRefreshing(true);
+      // Simulate fetching data from a server (replace with your actual data fetching logic)
+      setTimeout(() => {
+        setRefreshing(false);
+      }, 1000);
+    };
+
+    fetchData();
+  }, []);
+
+  // Store the group ID in AsyncStorage for future use
+  useEffect(() => {
+    const storeGroupId = async () => {
+      try {
+        await AsyncStorage.setItem('selectedGroupId', groupId.toString());
+      } catch (error) {
+        console.error('Error storing group ID:', error);
+      }
+    };
+
+    storeGroupId();
+  }, [groupId]);
+
+  const renderMemberItem = ({ item }) => (
+    <View style={styles.memberItem}>
+      <Text style={styles.memberName}>{item.UserName}</Text>
+    </View>
+  );
+
+  const handleAddMember = () => {
+    navigation.navigate("AddMembers");
+  };
+
+  const handleAddExpense = () => {
+    // Add logic to navigate to the "AddExpense" screen here
+    navigation.navigate("GroupExpense");
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Image source={require('../../../assets/images/goback1.png')} style={styles.buttonIcon} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{groupName}</Text>
+        <TouchableOpacity onPress={handleAddMember}>
+          <Image source={require('../../../assets/images/addmember.png')} style={styles.buttonIcon} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.groupInfo}>
+        <Text style={styles.label}>Group Description:</Text>
+        <Text style={styles.text}>{groupDescription}</Text>
+      </View>
+      <View style={styles.groupInfo}>
+        <Text style={styles.label}>Group created:</Text>
+        <Text style={styles.text}>{groupDate}</Text>
+      </View>
+      <Text style={styles.membersLabel}>Group Members:</Text>
+      {showMembers && (
+        <FlatList
+          data={groupMembers}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={renderMemberItem}
+          style={styles.memberList}
+          maxToRenderPerBatch={5} // Limit the number of rendered items
+          initialNumToRender={5} // Initially render only 5 items
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                // Simulate fetching updated data when the user manually refreshes
+                setRefreshing(true);
+                setTimeout(() => {
+                  setRefreshing(false);
+                }, 1000);
+              }}
+            />
+          }
+        />
+      )}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={toggleMembers}
+        >
+          <Text style={styles.buttonText}>{showMembers ? 'Hide Members' : 'Show Members'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("ShowExpense")}
+        >
+          <Text style={styles.buttonText}>Show Expense</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={styles.addExpenseButton}
+        onPress={handleAddExpense}
+      >
+        <Text style={styles.buttonText}>Add Expense</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#3E7EB0',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  buttonIcon: {
+    width: 50,
+    height: 50,
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  groupInfo: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  label: {
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  text: {
+    color: 'black',
+    fontWeight: 'bold',
+  },
+  membersLabel: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 16,
+  },
+  memberList: {
+    maxHeight: 200,
+    margin: 10,
+  },
+  memberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  memberName: {
+    fontSize: 16,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    margin: 10,
+  },
+  button: {
+    backgroundColor: '#3E7EB0',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    width: '48%', // Adjust the width as needed
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  addExpenseButton: {
+    backgroundColor: '#3E7EB0',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    width: '50%',
+    position: 'absolute',
+    bottom: 3,
+  },
+});
+
+export default GroupDetail;
